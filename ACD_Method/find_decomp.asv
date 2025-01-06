@@ -1,0 +1,100 @@
+function [a] = find_decomp(polygon_set, tor, result)
+%FIND_DECOMP Summary of this function goes here
+%   Detailed explanation goes here
+
+set_explored = {};
+
+% Initialize polygon to be explored
+% for i = length(polygon_set)
+%     set_explored{end + 1} = polygon_set{i};
+% end
+
+for i = 2: length(polygon_set)
+    % Compute the principal axis of this polygon
+    polygon_cur = polygon_set{i};
+    centroid = mean(polygon_cur, 1);
+    centeredPolygon = polygon_cur - centroid;
+    covarianceMatrix = cov(centeredPolygon);
+    [eigVectors, eigValues] = eig(covarianceMatrix);
+    
+    eig_value = diag(eigValues);
+    [~, idx] = max(eig_value);
+    PA = eigVectors(:, idx);
+    
+    % Compute x and cw(x)
+    inner_product = centeredPolygon * PA;
+    [~,x_idx] = max(inner_product);
+    [~,cwx_idx] = min(inner_product);
+
+    x = polygon_cur(x_idx,:);
+    cwx = polygon_cur(cwx_idx,:);
+    
+    % Compute size/ score
+    score = norm(x - cwx, 2);
+    if score < tor
+        continue;
+    else
+        % merge polygon to 
+        dist_vec = vecnorm(polygon_set{1} - x', 2, 2);
+        [~,idx] = min(dist_vec);
+
+        polygon_set{1}(idx,)
+    end
+    % 
+end
+% For my case, it is fine to decompose first
+
+% set_explored{end + 1} = polygon_set{1};
+
+numColors = length(polygon_set);
+colors = lines(numColors);
+
+figure
+hold on
+for i = 1:length(polygon_set)
+    if i == 1
+        fill(polygon_set{i}(:, 1), polygon_set{i}(:, 2), colors(i, :), 'FaceAlpha', 0.5, 'EdgeColor', 'blue');
+    else
+        fill(polygon_set{i}(:, 1), polygon_set{i}(:, 2), [1,1,1], 'FaceAlpha', 1, 'EdgeColor', 'blue');
+    end
+end
+title('input polygon')
+
+set_explored{end + 1} = polygon_set{1};
+
+while ~isempty(set_explored)
+    next = set_explored{1};
+    hullIndices = convhull(next(:, 1), next(:, 2));
+    
+    [pocket,max_idx, concave_score] = rank_notch(next);
+
+    if (size(hullIndices,1) - 1 == size(next,1)) || concave_score(max_idx) < tor
+        result.Data{end+1} = next;
+    else
+
+        [C1,C2] = ACD_2D(next, tor, pocket,max_idx, concave_score);
+        
+        C1 = C1(1:end-1,:);
+        C2 = C2(1:end-1,:);
+        if ~is_convex(C1) % Replace this with the concave measurement
+            set_explored{end + 1} = C1;
+        else
+            result.Data{end+1} = C1;
+        end
+        if ~is_convex(C2) % Replace this with the concave measurement
+            set_explored{end + 1} = C2;
+        else
+            result.Data{end+1} = C2;
+        end
+    end
+    set_explored(1) = [];
+end
+end
+
+function valid = is_convex(poly)
+    index_poly = 1:size(poly,1);
+    hullIndices = convhull(poly(:, 1), poly(:, 2));
+
+    valid = size(hullIndices,1) - 1 == size(poly,1);
+end
+
