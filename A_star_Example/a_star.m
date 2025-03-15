@@ -1,4 +1,4 @@
-function [path] = a_star(start,goal,map, heuristic, neighbor, weight, obs_info, option)
+    function [path] = a_star(start,goal,map, heuristic, neighbor, weight, obs_info, option)
 %A_STAR Summary of this function goes here
 %   Detailed explanation goes here
 %   start = [x y]
@@ -48,7 +48,7 @@ function [path] = a_star(start,goal,map, heuristic, neighbor, weight, obs_info, 
                 % If the neighbor is a obstacle
                 continue;
             else
-                temp_g = g(curX,curY) + 1 + obs_info(next_xy(i,1), next_xy(i,2));
+                temp_g = g(curX,curY) + norm(next_xy(i,:) - [curX curY], 2) + obs_info(next_xy(i,1), next_xy(i,2));
                 if ~openset(next_xy(i,1), next_xy(i,2))
                     % If it is not in the openlist
                     openset(next_xy(i,1), next_xy(i,2)) = true;
